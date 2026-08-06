@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "zelim-dugo-selo",
+  "main": "./src/worker.js",
+  "compatibility_date": "2026-08-06",
+
+  "assets": {
+    "directory": "./public",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "zelim-dugo-selo-db",
+      "database_id": "12604c5d-ddf0-4475-a470-7c857d14b88b"
+    }
+  ]
+}

@@ -167,52 +167,64 @@
       });
     }
 
-    function handleProposalSubmit(event) {
-      event.preventDefault();
+    async function handleProposalSubmit(event) {
+  event.preventDefault();
 
-      const text = el.proposalText.value.trim();
-      const category = el.proposalCategory.value;
-      const description = el.proposalDescription.value.trim();
+  const text = el.proposalText.value.trim();
+  const category = el.proposalCategory.value;
+  const description = el.proposalDescription.value.trim();
 
-      if (el.website.value) {
-        toast("Slanje nije uspjelo.", "error");
-        return;
-      }
+  if (el.website.value) {
+    toast("Slanje nije uspjelo.", "error");
+    return;
+  }
 
-      if (text.length < 12) {
-        toast("Prijedlog treba imati najmanje 12 znakova.", "error");
-        el.proposalText.focus();
-        return;
-      }
+  if (text.length < 12) {
+    toast("Prijedlog treba imati najmanje 12 znakova.", "error");
+    el.proposalText.focus();
+    return;
+  }
 
-      if (!category) {
-        toast("Odaberi kategoriju.", "error");
-        el.proposalCategory.focus();
-        return;
-      }
+  if (!category) {
+    toast("Odaberi kategoriju.", "error");
+    el.proposalCategory.focus();
+    return;
+  }
 
-      if (!el.rulesAccepted.checked) {
-        toast("Potvrdi pravila zajednice.", "error");
-        el.rulesAccepted.focus();
-        return;
-      }
+  if (!el.rulesAccepted.checked) {
+    toast("Potvrdi pravila zajednice.", "error");
+    el.rulesAccepted.focus();
+    return;
+  }
 
-      state.proposals.unshift({
-        id: crypto.randomUUID(),
-        text: text.replace(/^(\.{3}|…)+/, "").trim(),
+  try {
+    const response = await fetch("/api/proposals", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text,
         category,
-        description: description || "Prijedlog je poslan bez dodatnog obrazloženja.",
-        status: "pending",
-        support: 0,
-        createdAt: new Date().toISOString()
-      });
+        description
+      })
+    });
 
-      saveProposals();
-      el.proposalForm.reset();
-      el.charCount.textContent = "0";
-      renderAll();
-      toast("Prijedlog je zaprimljen i čeka pregled administratora.");
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Slanje prijedloga nije uspjelo.");
     }
+
+    el.proposalForm.reset();
+    el.charCount.textContent = "0";
+
+    toast("Prijedlog je zaprimljen i čeka pregled administratora.");
+  } catch (error) {
+    console.error(error);
+    toast(error.message || "Dogodila se pogreška pri slanju.", "error");
+  }
+}
 
     function renderAll() {
       renderStats();
