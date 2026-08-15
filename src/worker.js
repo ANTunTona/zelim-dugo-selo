@@ -22,6 +22,17 @@ export default {
         return createProposal(request, env);
       }
 
+      if (url.pathname === "/api/admin/proposals" && request.method === "GET") {
+        return getAdminProposals(request, env);
+      }
+
+      if (
+        url.pathname.startsWith("/api/admin/proposals/") &&
+        request.method === "PATCH"
+      ) {
+        return updateProposalStatus(request, env, url);
+      }
+
       return new Response("API ruta nije pronađena.", { status: 404 });
     } catch (error) {
       console.error(error);
@@ -103,4 +114,94 @@ async function createProposal(request, env) {
     },
     { status: 201 }
   );
+}
+
+  function isAdminRequest(request) {
+  const adminKey = request.headers.get("X-Admin-Key");
+  return adminKey === "DS2026";
+}
+
+async function getAdminProposals(request, env) {
+  if (!isAdminRequest(request)) {
+    return Response.json(
+      { error: "Neovlašten pristup." },
+      { status: 401 }
+    );
+  }
+
+  const { results } = await env.DB.prepare(`
+    SELECT
+      id,
+      text,
+      description,
+      category,
+      status,
+      support_count AS support,
+      created_at AS createdAt,
+      moderated_at AS moderatedAt
+    FROM proposals
+    ORDER BY datetime(created_at) DESC
+  `).all();
+
+  return Response.json(results);
+}
+
+async function updateProposalStatus(request, env, url) {
+  if (!isAdminRequest(request)) {
+    return Response.json(
+      { error: "Neovlašten pristup." },
+      { status: 401 }
+    );
+  }
+
+  const id = Number(url.pathname.split("/").pop());
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return Response.json(
+      { error: "Neispravan ID prijedloga." },
+      { status: 400 }
+    );
+  }
+
+  const body = await request.json();
+  const status = String(body.status || "").trim();
+
+  if (!["approved", "rejected"].includes(status)) {
+    return Response.json(
+      { error: "Status mora biti approved ili rejected." },
+      { status: 400 }
+    );
+  }
+
+  const existing = await env.DB.prepare(`
+    SELECT id
+    FROM proposals
+    WHERE id = ?
+  `)
+    .bind(id)
+    .first();
+
+  if (!existing) {
+    return Response.json(
+      { error: "Prijedlog nije pronađen." },
+      { status: 404 }
+    );
+  }
+
+  await env.DB.prepare(`
+    UPDATE proposals
+    SET
+      status = ?,
+      moderated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `)
+    .bind(status, id)
+    .run();
+
+  return Response.json({
+    success: true,
+    id,
+    status
+  });
+
 }
