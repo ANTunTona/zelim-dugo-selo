@@ -21,6 +21,12 @@ export default {
       if (url.pathname === "/api/proposals" && request.method === "POST") {
         return createProposal(request, env);
       }
+      if (
+        /^\/api\/proposals\/\d+\/support$/.test(url.pathname) &&
+        request.method === "POST"
+        ) {
+        return supportProposal(env, url);
+      }
 
       if (url.pathname === "/api/admin/proposals" && request.method === "GET") {
         return getAdminProposals(request, env);
@@ -115,6 +121,49 @@ async function createProposal(request, env) {
     { status: 201 }
   );
 }
+
+
+  async function supportProposal(env, url) {
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  const id = Number(pathParts[2]);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return Response.json(
+      { error: "Neispravan ID prijedloga." },
+      { status: 400 }
+    );
+  }
+
+  const result = await env.DB.prepare(`
+    UPDATE proposals
+    SET support_count = support_count + 1
+    WHERE id = ? AND status = 'approved'
+  `)
+    .bind(id)
+    .run();
+
+  if (!result.meta.changes) {
+    return Response.json(
+      { error: "Prijedlog nije pronađen ili nije odobren." },
+      { status: 404 }
+    );
+  }
+
+  const proposal = await env.DB.prepare(`
+    SELECT support_count AS support
+    FROM proposals
+    WHERE id = ?
+  `)
+    .bind(id)
+    .first();
+
+  return Response.json({
+    success: true,
+    id,
+    support: Number(proposal.support || 0)
+  });
+}
+
 
   function isAdminRequest(request, env) {
   const adminKey = request.headers.get("X-Admin-Key");

@@ -458,13 +458,13 @@ function renderPublicProposals() {
             <button
               class="button button-outline"
               type="button"
-              disabled
-              title="Povezivanje podrške s bazom slijedi u sljedećem koraku"
+              data-support-id="${proposal.id}"
+              ${alreadySupported ? "disabled" : ""}
             >
               ${
                 alreadySupported
-                  ? "Podržano ✓"
-                  : "Podrška uskoro"
+                ? "Podržano ✓"
+                : "Podrži"
               }
             </button>
           </div>
@@ -472,6 +472,86 @@ function renderPublicProposals() {
       `;
     })
     .join("");
+    el.proposalList
+  .querySelectorAll("[data-support-id]")
+  .forEach(button => {
+    button.addEventListener("click", () => {
+      supportProposal(button.dataset.supportId);
+    });
+  });
+}
+
+async function supportProposal(id) {
+  const proposalId = String(id);
+  const supported = loadSupported();
+
+  if (supported.includes(proposalId)) {
+    toast(
+      "Ovaj prijedlog već si podržao u ovom pregledniku.",
+      "error"
+    );
+    return;
+  }
+
+  const proposal = state.proposals.find(
+    item => item.id === proposalId
+  );
+
+  if (!proposal || proposal.status !== "approved") {
+    toast("Prijedlog nije dostupan.", "error");
+    return;
+  }
+
+  const button = el.proposalList.querySelector(
+    `[data-support-id="${proposalId}"]`
+  );
+
+  try {
+    if (button) {
+      button.disabled = true;
+    }
+
+    const response = await fetch(
+      `/api/proposals/${encodeURIComponent(proposalId)}/support`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json"
+        }
+      }
+    );
+
+    const result = await readJson(response);
+
+    if (!response.ok) {
+      throw new Error(
+        result.error || "Podršku nije moguće spremiti."
+      );
+    }
+
+    proposal.support = Number(result.support || 0);
+    supported.push(proposalId);
+
+    localStorage.setItem(
+      SUPPORT_KEY,
+      JSON.stringify(supported)
+    );
+
+    renderStats();
+    renderPublicProposals();
+    toast("Hvala na podršci!");
+  } catch (error) {
+    console.error(error);
+
+    if (button) {
+      button.disabled = false;
+    }
+
+    toast(
+      error.message || "Podršku nije moguće spremiti.",
+      "error"
+    );
+  }
 }
 
 function renderAdmin() {
