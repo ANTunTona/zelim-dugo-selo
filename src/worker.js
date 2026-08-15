@@ -116,13 +116,13 @@ async function createProposal(request, env) {
   );
 }
 
-  function isAdminRequest(request) {
+  function isAdminRequest(request, env) {
   const adminKey = request.headers.get("X-Admin-Key");
-  return adminKey === "DS2026";
+  return Boolean(env.ADMIN_KEY) && adminKey === env.ADMIN_KEY;
 }
 
 async function getAdminProposals(request, env) {
-  if (!isAdminRequest(request)) {
+  if (!isAdminRequest(request, env)) {
     return Response.json(
       { error: "Neovlašten pristup." },
       { status: 401 }
@@ -147,7 +147,7 @@ async function getAdminProposals(request, env) {
 }
 
 async function updateProposalStatus(request, env, url) {
-  if (!isAdminRequest(request)) {
+  if (!isAdminRequest(request, env)) {
     return Response.json(
       { error: "Neovlašten pristup." },
       { status: 401 }

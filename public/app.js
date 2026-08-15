@@ -2,7 +2,7 @@
 
 const SUPPORT_KEY = "zds.supported.v1";
 const VIEWS_KEY = "zds.pageViews.v1";
-const ADMIN_CODE = "DS2026";
+
 
 const categoryIcons = {
   Promet: "🚌",
@@ -264,10 +264,7 @@ async function handleAdminLogin(event) {
 
   const adminKey = el.adminCode.value;
 
-  if (adminKey !== ADMIN_CODE) {
-    toast("Pogrešan demo pristupni kod.", "error");
-    return;
-  }
+  
 
   el.adminList.innerHTML =
     '<div class="empty">Učitavanje prijedloga…</div>';
