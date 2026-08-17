@@ -3,7 +3,6 @@
 const SUPPORT_KEY = "zds.supported.v1";
 const VIEWS_KEY = "zds.pageViews.v1";
 
-
 const categoryIcons = {
   Promet: "🚌",
   Okoliš: "🌳",
@@ -64,8 +63,7 @@ async function initialise() {
   document.querySelector("#currentYear").textContent =
     new Date().getFullYear();
 
-  el.proposalList.innerHTML =
-    '<div class="empty">Učitavanje prijedloga…</div>';
+  setPublicLoadingState();
 
   try {
     await loadPublicProposals();
@@ -88,7 +86,10 @@ function bindEvents() {
     el.charCount.textContent = el.proposalText.value.length;
   });
 
-  el.proposalForm.addEventListener("submit", handleProposalSubmit);
+  el.proposalForm.addEventListener(
+    "submit",
+    handleProposalSubmit
+  );
 
   el.searchInput.addEventListener("input", event => {
     state.search = event.target.value
@@ -115,40 +116,53 @@ function bindEvents() {
       el.navLinks.classList.remove("open");
     });
 
-  el.adminLoginForm.addEventListener("submit", handleAdminLogin);
+  el.adminLoginForm.addEventListener(
+    "submit",
+    handleAdminLogin
+  );
 
-  el.adminStatusFilter.addEventListener("change", event => {
-    state.adminStatus = event.target.value;
-    renderAdmin();
-  });
+  el.adminStatusFilter.addEventListener(
+    "change",
+    event => {
+      state.adminStatus = event.target.value;
+      renderAdmin();
+    }
+  );
 
   document
     .querySelector("#exportButton")
     .addEventListener("click", exportJson);
 
-  const resetButton = document.querySelector("#resetButton");
+  const resetButton =
+    document.querySelector("#resetButton");
 
   if (resetButton) {
     resetButton.hidden = true;
   }
 
-  document.querySelectorAll("[data-close]").forEach(button => {
-    button.addEventListener("click", () => {
-      document
-        .querySelector("#" + button.dataset.close)
-        .close();
+  document
+    .querySelectorAll("[data-close]")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        document
+          .querySelector(
+            "#" + button.dataset.close
+          )
+          .close();
+      });
     });
-  });
 
   el.menuButton.addEventListener("click", () => {
     el.navLinks.classList.toggle("open");
   });
 
-  el.navLinks.querySelectorAll("a").forEach(link => {
-    link.addEventListener("click", () => {
-      el.navLinks.classList.remove("open");
+  el.navLinks
+    .querySelectorAll("a")
+    .forEach(link => {
+      link.addEventListener("click", () => {
+        el.navLinks.classList.remove("open");
+      });
     });
-  });
 }
 
 async function loadPublicProposals() {
@@ -162,13 +176,17 @@ async function loadPublicProposals() {
 
   if (!response.ok) {
     throw new Error(
-      result.error || "Učitavanje prijedloga nije uspjelo."
+      result.error ||
+        "Učitavanje prijedloga nije uspjelo."
     );
   }
 
   state.proposals = Array.isArray(result)
     ? result.map(proposal =>
-        normalizeProposal(proposal, "approved")
+        normalizeProposal(
+          proposal,
+          "approved"
+        )
       )
     : [];
 }
@@ -203,31 +221,41 @@ async function handleProposalSubmit(event) {
   }
 
   if (!el.rulesAccepted.checked) {
-    toast("Potvrdi pravila zajednice.", "error");
+    toast(
+      "Potvrdi pravila zajednice.",
+      "error"
+    );
+
     el.rulesAccepted.focus();
     return;
   }
 
   const submitButton =
-    el.proposalForm.querySelector('[type="submit"]');
+    el.proposalForm.querySelector(
+      '[type="submit"]'
+    );
 
   try {
     if (submitButton) {
       submitButton.disabled = true;
     }
 
-    const response = await fetch("/api/proposals", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json"
-      },
-      body: JSON.stringify({
-        text,
-        category,
-        description
-      })
-    });
+    const response = await fetch(
+      "/api/proposals",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({
+          text,
+          category,
+          description
+        })
+      }
+    );
 
     const result = await readJson(response);
 
@@ -264,8 +292,6 @@ async function handleAdminLogin(event) {
 
   const adminKey = el.adminCode.value;
 
-  
-
   el.adminList.innerHTML =
     '<div class="empty">Učitavanje prijedloga…</div>';
 
@@ -280,7 +306,6 @@ async function handleAdminLogin(event) {
     el.adminCode.value = "";
 
     renderAll();
-
     el.adminPanelDialog.showModal();
   } catch (error) {
     console.error(error);
@@ -330,7 +355,8 @@ function renderAll() {
 
 function renderStats() {
   const approved = state.proposals.filter(
-    proposal => proposal.status === "approved"
+    proposal =>
+      proposal.status === "approved"
   );
 
   const supports = approved.reduce(
@@ -340,7 +366,9 @@ function renderStats() {
   );
 
   const categories = new Set(
-    approved.map(proposal => proposal.category)
+    approved.map(
+      proposal => proposal.category
+    )
   );
 
   el.approvedCount.textContent =
@@ -366,13 +394,19 @@ function renderPublicProposals() {
 
       const searchMatch =
         !state.search ||
-        searchableText.includes(state.search);
+        searchableText.includes(
+          state.search
+        );
 
       const categoryMatch =
         state.category === "all" ||
-        proposal.category === state.category;
+        proposal.category ===
+          state.category;
 
-      return searchMatch && categoryMatch;
+      return (
+        searchMatch &&
+        categoryMatch
+      );
     });
 
   visible.sort((a, b) => {
@@ -414,17 +448,19 @@ function renderPublicProposals() {
               class="proposal-icon"
               aria-hidden="true"
             >
-              ${
+              ${escapeHtml(
                 categoryIcons[
                   proposal.category
                 ] || "💬"
-              }
+              )}
             </div>
 
             <div>
-              <h3>…${escapeHtml(
-                proposal.text
-              )}</h3>
+              <h3>
+                …${escapeHtml(
+                  proposal.text
+                )}
+              </h3>
 
               <div class="meta">
                 <span class="chip">
@@ -459,12 +495,16 @@ function renderPublicProposals() {
               class="button button-outline"
               type="button"
               data-support-id="${proposal.id}"
-              ${alreadySupported ? "disabled" : ""}
+              ${
+                alreadySupported
+                  ? "disabled"
+                  : ""
+              }
             >
               ${
                 alreadySupported
-                ? "Podržano ✓"
-                : "Podrži"
+                  ? "Podržano ✓"
+                  : "Podrži"
               }
             </button>
           </div>
@@ -472,13 +512,21 @@ function renderPublicProposals() {
       `;
     })
     .join("");
-    el.proposalList
-  .querySelectorAll("[data-support-id]")
-  .forEach(button => {
-    button.addEventListener("click", () => {
-      supportProposal(button.dataset.supportId);
+
+  el.proposalList
+    .querySelectorAll(
+      "[data-support-id]"
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          supportProposal(
+            button.dataset.supportId
+          );
+        }
+      );
     });
-  });
 }
 
 async function supportProposal(id) {
@@ -497,14 +545,21 @@ async function supportProposal(id) {
     item => item.id === proposalId
   );
 
-  if (!proposal || proposal.status !== "approved") {
-    toast("Prijedlog nije dostupan.", "error");
+  if (
+    !proposal ||
+    proposal.status !== "approved"
+  ) {
+    toast(
+      "Prijedlog nije dostupan.",
+      "error"
+    );
     return;
   }
 
-  const button = el.proposalList.querySelector(
-    `[data-support-id="${proposalId}"]`
-  );
+  const button =
+    el.proposalList.querySelector(
+      `[data-support-id="${proposalId}"]`
+    );
 
   try {
     if (button) {
@@ -512,7 +567,9 @@ async function supportProposal(id) {
     }
 
     const response = await fetch(
-      `/api/proposals/${encodeURIComponent(proposalId)}/support`,
+      `/api/proposals/${encodeURIComponent(
+        proposalId
+      )}/support`,
       {
         method: "POST",
         headers: {
@@ -525,11 +582,15 @@ async function supportProposal(id) {
 
     if (!response.ok) {
       throw new Error(
-        result.error || "Podršku nije moguće spremiti."
+        result.error ||
+          "Podršku nije moguće spremiti."
       );
     }
 
-    proposal.support = Number(result.support || 0);
+    proposal.support = Number(
+      result.support || 0
+    );
+
     supported.push(proposalId);
 
     localStorage.setItem(
@@ -539,6 +600,7 @@ async function supportProposal(id) {
 
     renderStats();
     renderPublicProposals();
+
     toast("Hvala na podršci!");
   } catch (error) {
     console.error(error);
@@ -548,7 +610,8 @@ async function supportProposal(id) {
     }
 
     toast(
-      error.message || "Podršku nije moguće spremiti.",
+      error.message ||
+        "Podršku nije moguće spremiti.",
       "error"
     );
   }
@@ -592,69 +655,83 @@ function renderAdmin() {
   }
 
   el.adminList.innerHTML = list
-    .map(proposal => `
-      <article class="admin-item">
-        <div>
-          <h4>…${escapeHtml(
-            proposal.text
-          )}</h4>
-
-          <p>
-            ${escapeHtml(
-              proposal.description
-            )}
-          </p>
-
-          <p style="margin-top:8px">
-            <strong>
-              ${escapeHtml(
-                proposal.category
+    .map(
+      proposal => `
+        <article class="admin-item">
+          <div>
+            <h4>
+              …${escapeHtml(
+                proposal.text
               )}
-            </strong>
-            · ${formatDate(
-              proposal.createdAt
-            )}
-            · ${proposal.support} podrški
-          </p>
+            </h4>
 
-          <span class="status ${proposal.status}">
-            ${statusLabel(
-              proposal.status
-            )}
-          </span>
-        </div>
+            <p>
+              ${escapeHtml(
+                proposal.description
+              )}
+            </p>
 
-        <div class="admin-actions">
-          ${
-            proposal.status !== "approved"
-              ? `
-                <button
-                  class="button button-soft"
-                  data-action="approve"
-                  data-id="${proposal.id}"
-                >
-                  Odobri
-                </button>
-              `
-              : ""
-          }
+            <p style="margin-top:8px">
+              <strong>
+                ${escapeHtml(
+                  proposal.category
+                )}
+              </strong>
 
-          ${
-            proposal.status !== "rejected"
-              ? `
-                <button
-                  class="button button-outline"
-                  data-action="reject"
-                  data-id="${proposal.id}"
-                >
-                  Odbij
-                </button>
-              `
-              : ""
-          }
-        </div>
-      </article>
-    `)
+              · ${formatDate(
+                proposal.createdAt
+              )}
+
+              · ${proposal.support} podrški
+            </p>
+
+            <span class="status ${proposal.status}">
+              ${statusLabel(
+                proposal.status
+              )}
+            </span>
+          </div>
+
+          <div class="admin-actions">
+            ${
+              proposal.status !== "approved"
+                ? `
+                  <button
+                    class="button button-soft"
+                    data-action="approve"
+                    data-id="${proposal.id}"
+                  >
+                    Odobri
+                  </button>
+                `
+                : ""
+            }
+
+            ${
+              proposal.status !== "rejected"
+                ? `
+                  <button
+                    class="button button-outline"
+                    data-action="reject"
+                    data-id="${proposal.id}"
+                  >
+                    Odbij
+                  </button>
+                `
+                : ""
+            }
+
+            <button
+              class="button button-danger"
+              data-action="delete"
+              data-id="${proposal.id}"
+            >
+              Izbriši
+            </button>
+          </div>
+        </article>
+      `
+    )
     .join("");
 
   el.adminList
@@ -673,15 +750,53 @@ function renderAdmin() {
 }
 
 async function adminAction(action, id) {
+  if (!state.adminKey) {
+    return;
+  }
+
   const statusByAction = {
     approve: "approved",
     reject: "rejected"
   };
 
-  const status = statusByAction[action];
+  const isDelete =
+    action === "delete";
 
-  if (!status || !state.adminKey) {
+  const status =
+    statusByAction[action];
+
+  if (!isDelete && !status) {
     return;
+  }
+
+  if (
+    isDelete &&
+    !confirm(
+      "Trajno izbrisati ovaj prijedlog? Ovu radnju nije moguće poništiti."
+    )
+  ) {
+    return;
+  }
+
+  const options = {
+    method: isDelete
+      ? "DELETE"
+      : "PATCH",
+
+    headers: {
+      Accept: "application/json",
+      "X-Admin-Key":
+        state.adminKey
+    }
+  };
+
+  if (!isDelete) {
+    options.headers[
+      "Content-Type"
+    ] = "application/json";
+
+    options.body =
+      JSON.stringify({ status });
   }
 
   try {
@@ -689,47 +804,49 @@ async function adminAction(action, id) {
       `/api/admin/proposals/${encodeURIComponent(
         id
       )}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type":
-            "application/json",
-          Accept: "application/json",
-          "X-Admin-Key":
-            state.adminKey
-        },
-        body: JSON.stringify({
-          status
-        })
-      }
+      options
     );
 
-    const result = await readJson(response);
+    const result =
+      await readJson(response);
 
     if (!response.ok) {
       throw new Error(
         result.error ||
-          "Promjena statusa nije uspjela."
+          (
+            isDelete
+              ? "Brisanje prijedloga nije uspjelo."
+              : "Promjena statusa nije uspjela."
+          )
       );
     }
 
     await loadAdminProposals();
     renderAll();
 
-    toast(
-      status === "approved"
-        ? "Prijedlog je odobren."
-        : "Prijedlog je odbijen."
-    );
+    if (isDelete) {
+      toast("Prijedlog je izbrisan.");
+    } else {
+      toast(
+        status === "approved"
+          ? "Prijedlog je odobren."
+          : "Prijedlog je odbijen."
+      );
+    }
   } catch (error) {
     console.error(error);
 
     toast(
       error.message ||
-        "Promjena statusa nije uspjela.",
+        "Administratorska radnja nije uspjela.",
       "error"
     );
   }
+}
+
+function setPublicLoadingState() {
+  el.proposalList.innerHTML =
+    '<div class="empty">Učitavanje prijedloga…</div>';
 }
 
 function normalizeProposal(
@@ -763,11 +880,13 @@ function populateCategoryFilter() {
   el.categoryFilter.innerHTML =
     '<option value="all">Sve kategorije</option>' +
     Object.keys(categoryIcons)
-      .map(category => `
-        <option value="${escapeHtml(category)}">
-          ${escapeHtml(category)}
-        </option>
-      `)
+      .map(
+        category => `
+          <option value="${escapeHtml(category)}">
+            ${escapeHtml(category)}
+          </option>
+        `
+      )
       .join("");
 }
 
@@ -830,7 +949,9 @@ function exportJson() {
 
   URL.revokeObjectURL(url);
 
-  toast("JSON izvoz je pripremljen.");
+  toast(
+    "JSON izvoz je pripremljen."
+  );
 }
 
 function statusLabel(status) {
@@ -844,7 +965,9 @@ function statusLabel(status) {
 function formatDate(value) {
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(date.getTime())
+  ) {
     return "—";
   }
 
