@@ -21,6 +21,13 @@ export default {
       if (url.pathname === "/api/proposals" && request.method === "POST") {
         return createProposal(request, env);
       }
+      if (url.pathname === "/api/visitors" && request.method === "POST") {
+        return trackAnonymousVisitor(request, env);
+      }
+
+      if (url.pathname === "/api/public-stats" && request.method === "GET") {
+        return getPublicStats(env);
+      }
       if (
         /^\/api\/proposals\/\d+\/support$/.test(url.pathname) &&
         request.method === "POST"
@@ -168,6 +175,88 @@ async function createProposal(request, env) {
     support: Number(proposal.support || 0)
   });
 }
+
+  async function trackAnonymousVisitor(request, env) {
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json(
+      { error: "Neispravan zahtjev." },
+      { status: 400 }
+    );
+  }
+
+  const visitorId = String(body.visitorId || "").trim();
+
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  if (!uuidPattern.test(visitorId)) {
+    return Response.json(
+      { error: "Neispravan anonimni identifikator." },
+      { status: 400 }
+    );
+  }
+
+  const encodedId = new TextEncoder().encode(visitorId);
+
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    encodedId
+  );
+
+  const visitorHash = Array.from(
+    new Uint8Array(hashBuffer)
+  )
+    .map(byte => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+  await env.DB.prepare(`
+    INSERT INTO visitors (
+      visitor_hash,
+      first_seen,
+      last_seen
+    )
+    VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ON CONFLICT(visitor_hash)
+    DO UPDATE SET last_seen = CURRENT_TIMESTAMP
+  `)
+    .bind(visitorHash)
+    .run();
+
+  return getPublicStats(env);
+}
+
+async function getPublicStats(env) {
+  const visitorStats = await env.DB.prepare(`
+    SELECT COUNT(*) AS uniqueVisitors
+    FROM visitors
+  `).first();
+
+  const proposalStats = await env.DB.prepare(`
+    SELECT
+      COUNT(*) AS approvedProposals,
+      COALESCE(SUM(support_count), 0) AS totalSupports
+    FROM proposals
+    WHERE status = 'approved'
+  `).first();
+
+  return Response.json({
+    uniqueVisitors: Number(
+      visitorStats.uniqueVisitors || 0
+    ),
+    approvedProposals: Number(
+      proposalStats.approvedProposals || 0
+    ),
+    totalSupports: Number(
+      proposalStats.totalSupports || 0
+    )
+  });
+}
+
+
 
 
   function isAdminRequest(request, env) {

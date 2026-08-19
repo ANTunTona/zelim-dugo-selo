@@ -2,6 +2,7 @@
 
 const SUPPORT_KEY = "zds.supported.v1";
 const VIEWS_KEY = "zds.pageViews.v1";
+const VISITOR_KEY = "zds.visitorId.v1";
 
 const categoryIcons = {
   Promet: "🚌",
@@ -35,6 +36,7 @@ const el = {
   approvedCount: document.querySelector("#approvedCount"),
   supportCount: document.querySelector("#supportCount"),
   categoryCount: document.querySelector("#categoryCount"),
+  visitorCount: document.querySelector("#visitorCount"),
   searchInput: document.querySelector("#searchInput"),
   categoryFilter: document.querySelector("#categoryFilter"),
   sortFilter: document.querySelector("#sortFilter"),
@@ -68,6 +70,10 @@ async function initialise() {
   try {
     await loadPublicProposals();
     renderAll();
+    trackAnonymousVisit().catch(error => {
+      console.error(error);
+      el.visitorCount.textContent = "—";
+});
   } catch (error) {
     console.error(error);
 
@@ -164,7 +170,51 @@ function bindEvents() {
       });
     });
 }
+async function trackAnonymousVisit() {
+  const visitorId = getOrCreateVisitorId();
 
+  const response = await fetch("/api/visitors", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: JSON.stringify({ visitorId })
+  });
+
+  const result = await readJson(response);
+
+  if (!response.ok) {
+    throw new Error(
+      result.error ||
+        "Broj posjetitelja nije moguće učitati."
+    );
+  }
+
+  el.visitorCount.textContent = Number(
+    result.uniqueVisitors || 0
+  ).toLocaleString("hr-HR");
+}
+
+function getOrCreateVisitorId() {
+  try {
+    let visitorId =
+      localStorage.getItem(VISITOR_KEY);
+
+    if (!visitorId) {
+      visitorId = crypto.randomUUID();
+
+      localStorage.setItem(
+        VISITOR_KEY,
+        visitorId
+      );
+    }
+
+    return visitorId;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
 async function loadPublicProposals() {
   const response = await fetch("/api/proposals", {
     headers: {
