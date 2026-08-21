@@ -1,7 +1,6 @@
 "use strict";
 
 const SUPPORT_KEY = "zds.supported.v1";
-const VIEWS_KEY = "zds.pageViews.v1";
 const VISITOR_KEY = "zds.visitorId.v1";
 
 const categoryIcons = {
@@ -21,7 +20,8 @@ const state = {
   category: "all",
   sort: "newest",
   adminStatus: "all",
-  adminKey: ""
+  adminKey: "",
+  adminStats: null
 };
 
 const el = {
@@ -46,10 +46,16 @@ const el = {
   adminCode: document.querySelector("#adminCode"),
   adminList: document.querySelector("#adminList"),
   adminStatusFilter: document.querySelector("#adminStatusFilter"),
+  adminVisitors: document.querySelector("#adminVisitors"),
   adminTotal: document.querySelector("#adminTotal"),
   adminPending: document.querySelector("#adminPending"),
   adminApproved: document.querySelector("#adminApproved"),
-  adminViews: document.querySelector("#adminViews"),
+  adminRejected: document.querySelector("#adminRejected"),
+  adminSupports: document.querySelector("#adminSupports"),
+  adminConversion: document.querySelector("#adminConversion"),
+  adminApprovalRate: document.querySelector("#adminApprovalRate"),
+  adminModerationTime: document.querySelector("#adminModerationTime"),
+  adminCategoryStats: document.querySelector("#adminCategoryStats"),
   toastWrap: document.querySelector("#toastWrap"),
   menuButton: document.querySelector("#menuButton"),
   navLinks: document.querySelector("#navLinks")
@@ -58,7 +64,6 @@ const el = {
 initialise();
 
 async function initialise() {
-  incrementViews();
   populateCategoryFilter();
   bindEvents();
 
@@ -346,7 +351,10 @@ async function handleAdminLogin(event) {
     '<div class="empty">Učitavanje prijedloga…</div>';
 
   try {
-    await loadAdminProposals(adminKey);
+        await Promise.all([
+      loadAdminProposals(adminKey),
+      loadAdminStats(adminKey)
+    ]);
 
     state.adminKey = adminKey;
     state.adminStatus =
@@ -396,7 +404,30 @@ async function loadAdminProposals(
       )
     : [];
 }
+async function loadAdminStats(
+  adminKey = state.adminKey
+) {
+  const response = await fetch(
+    "/api/admin/stats",
+    {
+      headers: {
+        Accept: "application/json",
+        "X-Admin-Key": adminKey
+      }
+    }
+  );
 
+  const result = await readJson(response);
+
+  if (!response.ok) {
+    throw new Error(
+      result.error ||
+        "Učitavanje analitike nije uspjelo."
+    );
+  }
+
+  state.adminStats = result;
+}
 function renderAll() {
   renderStats();
   renderPublicProposals();
@@ -666,7 +697,130 @@ async function supportProposal(id) {
     );
   }
 }
+function renderAdminAnalytics() {
+  const stats = state.adminStats;
 
+  if (!stats) {
+    return;
+  }
+
+  const formatNumber = value =>
+    Number(value || 0).toLocaleString("hr-HR");
+
+  const formatDecimal = value =>
+    Number(value || 0).toLocaleString(
+      "hr-HR",
+      {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+      }
+    );
+
+  const formatPercent = value =>
+    `${formatDecimal(value)} %`;
+
+  el.adminVisitors.textContent =
+    formatNumber(stats.uniqueVisitors);
+
+  el.adminTotal.textContent =
+    formatNumber(stats.totalProposals);
+
+  el.adminPending.textContent =
+    formatNumber(stats.pendingProposals);
+
+  el.adminApproved.textContent =
+    formatNumber(stats.approvedProposals);
+
+  el.adminRejected.textContent =
+    formatNumber(stats.rejectedProposals);
+
+  el.adminSupports.textContent =
+    formatNumber(stats.totalSupports);
+
+    el.adminConversion.textContent =
+    formatDecimal(
+      stats.proposalsPer100Visitors
+    );
+
+  el.adminApprovalRate.textContent =
+    formatPercent(stats.approvalRate);
+
+  if (
+    stats.averageModerationHours === null ||
+    stats.averageModerationHours === undefined
+  ) {
+    el.adminModerationTime.textContent = "—";
+  } else {
+    const hours = Number(
+      stats.averageModerationHours
+    );
+
+    el.adminModerationTime.textContent =
+      hours < 24
+        ? `${hours.toLocaleString(
+            "hr-HR",
+            {
+              maximumFractionDigits: 1
+            }
+          )} h`
+        : `${(hours / 24).toLocaleString(
+            "hr-HR",
+            {
+              maximumFractionDigits: 1
+            }
+          )} dana`;
+  }
+
+  const categories = Array.isArray(
+    stats.byCategory
+  )
+    ? stats.byCategory
+    : [];
+
+  if (!categories.length) {
+    el.adminCategoryStats.innerHTML =
+      '<p class="empty">Još nema podataka po kategorijama.</p>';
+
+    return;
+  }
+
+  el.adminCategoryStats.innerHTML =
+    categories
+      .map(category => {
+        return `
+          <div class="admin-category-row">
+            <strong>${escapeHtml(
+              category.category ||
+                "Bez kategorije"
+            )}</strong>
+
+            <div class="admin-category-metrics">
+              <span>
+                <strong>${formatNumber(
+                  category.total
+                )}</strong>
+                ukupno
+              </span>
+
+              <span>
+                <strong>${formatNumber(
+                  category.approved
+                )}</strong>
+                odobreno
+              </span>
+
+              <span>
+                <strong>${formatNumber(
+                  category.supports
+                )}</strong>
+                podrški
+              </span>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+}
 function renderAdmin() {
   const list = state.proposals.filter(
     proposal => {
@@ -693,9 +847,7 @@ function renderAdmin() {
         proposal.status === "approved"
     ).length;
 
-  el.adminViews.textContent = Number(
-    localStorage.getItem(VIEWS_KEY) || 0
-  );
+    renderAdminAnalytics();
 
   if (!list.length) {
     el.adminList.innerHTML =
@@ -871,7 +1023,10 @@ async function adminAction(action, id) {
       );
     }
 
-    await loadAdminProposals();
+        await Promise.all([
+      loadAdminProposals(),
+      loadAdminStats()
+    ]);
     renderAll();
 
     if (isDelete) {
@@ -955,17 +1110,6 @@ function loadSupported() {
   } catch {
     return [];
   }
-}
-
-function incrementViews() {
-  const current = Number(
-    localStorage.getItem(VIEWS_KEY) || 0
-  );
-
-  localStorage.setItem(
-    VIEWS_KEY,
-    String(current + 1)
-  );
 }
 
 function exportJson() {

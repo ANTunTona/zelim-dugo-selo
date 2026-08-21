@@ -273,13 +273,61 @@
         <button class="close-button" data-close="adminPanelDialog" aria-label="Zatvori">×</button>
       </div>
 
-      <div class="admin-stats">
-        <div class="admin-stat"><strong id="adminTotal">0</strong><span>ukupno</span></div>
-        <div class="admin-stat"><strong id="adminPending">0</strong><span>na čekanju</span></div>
-        <div class="admin-stat"><strong id="adminApproved">0</strong><span>odobreno</span></div>
-        <div class="admin-stat"><strong id="adminViews">0</strong><span>lokalnih pregleda</span></div>
-      </div>
+            <div class="admin-stats">
+        <div class="admin-stat">
+          <strong id="adminVisitors">0</strong>
+          <span>jedinstvenih posjetitelja</span>
+        </div>
 
+        <div class="admin-stat">
+          <strong id="adminTotal">0</strong>
+          <span>ukupno prijedloga</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong id="adminPending">0</strong>
+          <span>na čekanju</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong id="adminApproved">0</strong>
+          <span>odobreno</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong id="adminRejected">0</strong>
+          <span>odbijeno</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong id="adminSupports">0</strong>
+          <span>ukupno podrški</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong id="adminConversion">0,0</strong>
+          <span title="Približan broj prijedloga na svakih 100 jedinstvenih preglednika">
+            prijedloga na 100 posjetitelja
+          </span>
+        </div>
+
+        <div class="admin-stat">
+          <strong id="adminApprovalRate">0 %</strong>
+          <span>udio odobrenih</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong id="adminModerationTime">—</strong>
+          <span>prosječno vrijeme obrade</span>
+        </div>
+      </div>
+            <section class="admin-analytics-section" aria-labelledby="adminCategoryTitle">
+        <h3 id="adminCategoryTitle">Prijedlozi po kategorijama</h3>
+
+        <div class="admin-category-list" id="adminCategoryStats">
+          <p class="empty">Analitika će se učitati nakon prijave.</p>
+        </div>
+      </section>
       <div class="admin-toolbar">
         <select id="adminStatusFilter">
           <option value="all">Svi statusi</option>

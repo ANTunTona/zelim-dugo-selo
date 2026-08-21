@@ -34,6 +34,9 @@ export default {
         ) {
         return supportProposal(env, url);
       }
+            if (url.pathname === "/api/admin/stats" && request.method === "GET") {
+        return getAdminStats(request, env);
+      }
 
       if (url.pathname === "/api/admin/proposals" && request.method === "GET") {
         return getAdminProposals(request, env);
@@ -310,7 +313,117 @@ async function deleteProposal(request, env, url) {
     id
   });
 }
+async function getAdminStats(request, env) {
+  if (!isAdminRequest(request, env)) {
+    return Response.json(
+      { error: "Neovlašten pristup." },
+      { status: 401 }
+    );
+  }
 
+  const [proposalStats, visitorStats, categoryResult] = await Promise.all([
+    env.DB.prepare(`
+      SELECT
+        COUNT(*) AS totalProposals,
+        COALESCE(
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END),
+          0
+        ) AS pendingProposals,
+        COALESCE(
+          SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END),
+          0
+        ) AS approvedProposals,
+        COALESCE(
+          SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END),
+          0
+        ) AS rejectedProposals,
+        COALESCE(SUM(support_count), 0) AS totalSupports,
+        AVG(
+          CASE
+            WHEN moderated_at IS NOT NULL
+            THEN (
+              julianday(moderated_at) - julianday(created_at)
+            ) * 24
+          END
+        ) AS averageModerationHours
+      FROM proposals
+    `).first(),
+
+    env.DB.prepare(`
+      SELECT COUNT(*) AS uniqueVisitors
+      FROM visitors
+    `).first(),
+
+    env.DB.prepare(`
+      SELECT
+        category,
+        COUNT(*) AS total,
+        COALESCE(
+          SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END),
+          0
+        ) AS approved,
+        COALESCE(SUM(support_count), 0) AS supports
+      FROM proposals
+      GROUP BY category
+      ORDER BY total DESC, category ASC
+    `).all()
+  ]);
+
+  const totalProposals = Number(
+    proposalStats.totalProposals || 0
+  );
+  const pendingProposals = Number(
+    proposalStats.pendingProposals || 0
+  );
+  const approvedProposals = Number(
+    proposalStats.approvedProposals || 0
+  );
+  const rejectedProposals = Number(
+    proposalStats.rejectedProposals || 0
+  );
+  const totalSupports = Number(
+    proposalStats.totalSupports || 0
+  );
+  const uniqueVisitors = Number(
+    visitorStats.uniqueVisitors || 0
+  );
+  const moderatedProposals =
+    approvedProposals + rejectedProposals;
+
+  const proposalsPer100Visitors = uniqueVisitors > 0
+    ? (totalProposals / uniqueVisitors) * 100
+    : 0;
+
+  const approvalRate = moderatedProposals > 0
+    ? (approvedProposals / moderatedProposals) * 100
+    : 0;
+
+  const averageModerationHours =
+    proposalStats.averageModerationHours === null
+      ? null
+      : Number(proposalStats.averageModerationHours);
+
+  return Response.json({
+    totalProposals,
+    pendingProposals,
+    approvedProposals,
+    rejectedProposals,
+    totalSupports,
+    uniqueVisitors,
+    proposalsPer100Visitors: Number(proposalsPer100Visitors.toFixed(1)),
+    approvalRate: Number(approvalRate.toFixed(1)),
+    averageModerationHours:
+      averageModerationHours === null
+        ? null
+        : Number(averageModerationHours.toFixed(1)),
+    byCategory: categoryResult.results.map(row => ({
+      category: row.category,
+      total: Number(row.total || 0),
+      approved: Number(row.approved || 0),
+      supports: Number(row.supports || 0)
+    }))
+  });
+}
 
 async function getAdminProposals(request, env) {
   if (!isAdminRequest(request, env)) {
